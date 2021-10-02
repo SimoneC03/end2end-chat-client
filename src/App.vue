@@ -30,7 +30,7 @@
         </div>
         <div class="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
           <!-- Profile dropdown -->
-          <div class="ml-3 relative">
+          <div class="ml-3 relative z-50">
             <div>
               <router-link :to="{name: 'Register'}" v-if="Object.keys(user).length == 0" :class="{'text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium':true, 'bg-gray-900 text-white':$route.name=='Register'}" @click="dropdown = false">Register</router-link>
               <router-link :to="{name: 'Login'}" v-if="Object.keys(user).length == 0" :class="{'text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium':true, 'bg-gray-900 text-white':$route.name=='Login'}" @click="dropdown = false">Login</router-link>
