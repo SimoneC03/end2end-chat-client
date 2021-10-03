@@ -8,15 +8,16 @@
           <h1 class="text-center">Decrypting your messages...</h1>
         </div>
         <div v-for="(el, index) in messages" :key="index" class="flex flex-row">
-          <div :class="{'message p-3 rounded shadow-sm text-sm m-2': true, 'ml-auto mr-0': el.author == user.username, 'ml-0 mr-auto': el.author == receiverSelected}" v-if="(el.copy === true && el.author === user.username) || (el.copy === false && el.author === receiverSelected.username)">
+          <div :class="{'message p-3 rounded shadow-sm text-sm m-2 max-w-sm lg:max-w-lg': true, 'ml-auto mr-0': el.author == user.username, 'ml-0 mr-auto': el.author == receiverSelected.username}" v-if="(el.copy === true && el.author === user.username) || (el.copy === false && el.author === receiverSelected.username)">
             <span v-html="el.text" class="block"></span>
             <span v-html="new Date(el.created_at).toLocaleTimeString()" class="text-gray-500"></span>
           </div>
         </div>
       </div>
       <div class="input container absolute bottom-0 right-0 left-0 bg-gray-100 p-3 flex flex-row justify-center align-middle items-center" style="max-width:unset!important">
-        <input type="text" class="bg-white shadow-lg rounded p-3 inline-block w-10/12 focus:outline-none" v-model="messageToSend" @keyup.enter="sendMessage()">
-        <i class="fas fa-paper-plane text-gray-300 hover:text-gray-400 text-2xl cursor-pointer ml-3"></i>
+        <p :class="{'text-sm mr-2 text-gray-600':true, 'text-red-500':messageToSend.length > maxMessageLength}" v-html="messageToSend.length+'/'+maxMessageLength"></p>
+        <input type="text" max="190" class="bg-white shadow-lg rounded p-3 inline-block w-10/12 focus:outline-none" v-model="messageToSend" @keyup.enter="sendMessage()">
+        <i class="fas fa-paper-plane text-gray-300 hover:text-gray-400 text-2xl cursor-pointer ml-3" @click="sendMessage()"></i>
       </div>
     </div> 
   </div>
@@ -24,7 +25,7 @@
 <style lang="css">
   body {background: rgb(238, 238, 238);}
   .chat-container {height: 600px; max-width: unset!important;}
-  .message {background: rgb(188, 255, 222); word-break: break-all;}
+  .message {background: rgb(188, 255, 222); word-break: break-word;}
   .loading-overlay::before {content: ''; position: absolute; top: 0; bottom: 0;left: 0;right: 0; background: rgba(255,255,255,.78); z-index: 1;}
 </style>
 <script>
@@ -35,6 +36,7 @@ export default {
     return {
       user: {},
       messages: [],
+      maxMessageLength: 190,
       privateKeyFormatted: {},
       publicKeyFormatted: {},
       receiverPublicKeyFormatted: {},
@@ -54,25 +56,27 @@ export default {
     },
     async sendMessage() {
       const app = this
-      const encryptedText = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, app.receiverPublicKeyFormatted, Buffer.from(app.messageToSend, 'utf8'));
-      const encryptedTextCopy = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, app.publicKeyFormatted, Buffer.from(app.messageToSend, 'utf8'));
+      if(app.messageToSend.length <= app.maxMessageLength) {
+        const encryptedText = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, app.receiverPublicKeyFormatted, Buffer.from(app.messageToSend, 'utf8'));
+        const encryptedTextCopy = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, app.publicKeyFormatted, Buffer.from(app.messageToSend, 'utf8'));
 
-      const res = await app.axios.post('/messages', {
-        receiver: app.receiverSelected.username,
-        text: Buffer.from(encryptedText).toString('base64'),
-        textCopy: Buffer.from(encryptedTextCopy).toString('base64')
-      })
+        const res = await app.axios.post('/messages', {
+          receiver: app.receiverSelected.username,
+          text: Buffer.from(encryptedText).toString('base64'),
+          textCopy: Buffer.from(encryptedTextCopy).toString('base64')
+        })
 
-      if(res.data.error == undefined && res.data.error != true) {
-        //IN LCOAL ONLY!!
-        let mex = res.data.copy
-        mex.text = app.messageToSend
-        app.messages.push(mex)
-        app.messageToSend = ''
-      }
-      else {
-        console.log("Errore in sendMessage")
-        console.log(res.data.message)
+        if(res.data.error == undefined && res.data.error != true) {
+          //IN LCOAL ONLY!!
+          let mex = res.data.copy
+          mex.text = app.messageToSend
+          app.messages.push(mex)
+          app.messageToSend = ''
+        }
+        else {
+          console.log("Errore in sendMessage")
+          console.log(res.data.message)
+        }
       }
     },
     str2ab(str) {
