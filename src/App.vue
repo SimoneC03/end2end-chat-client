@@ -41,10 +41,10 @@
               </button>
 
             </div>
-            <div class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1" v-show="dropdown">
+            <div class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-gray-600 ring-1 ring-black ring-opacity-5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1" v-show="dropdown">
               <!-- Active: "bg-gray-100", Not Active: "" -->
-              <router-link :to="{name: 'Account'}" class="inline-block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">Your Profile</router-link>
-              <button @click="logout" class="inline-block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-1">Log out</button>
+              <router-link :to="{name: 'Account'}" class="inline-block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-500" role="menuitem" tabindex="-1" id="user-menu-item-0">Your Profile</router-link>
+              <button @click="logout" class="inline-block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-500" role="menuitem" tabindex="-1" id="user-menu-item-1">Log out</button>
             </div>
           </div>
         </div>
@@ -94,6 +94,7 @@ export default {
   methods: {
     logout() {
       localStorage.removeItem('access_token')
+      localStorage.removeItem('private_key')
       localStorage.removeItem('user')
       this.$router.push({name: 'Login'})
       location.reload()
@@ -107,6 +108,8 @@ export default {
       this.axios.get('/profile').then(res => {
         localStorage.setItem('user', JSON.stringify(res.data))
         this.user = res.data
+      }).catch(() => {
+        this.logout()
       })
     }
   }

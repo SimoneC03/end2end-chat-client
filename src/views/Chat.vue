@@ -1,32 +1,32 @@
 <template>
-  <div class="chat">
-    <h1 class="text-lg my-3 text-center">Chat</h1>
-    <div class="chat-container w-10/12 p-3 overflow-y-auto overflow-x-hidden relative rounded-xl shadow-xl mx-auto bg-white">
-      <div :class="{'loading-overlay relative': pageLoading}">
-        <div v-if="pageLoading" class="z-50 h-full block relative flex flex-col items-center">
-          <h1 class="text-center"><i class="fa fa-spinner"></i></h1>
-          <h1 class="text-center">Decrypting your messages...</h1>
+  <div class="chat bg-gray-900 h-screen">
+    <h1 class="text-lg py-3 text-center text-gray-300">Chat</h1>
+    <div :class="{'loading-overlay relative overflow-y-hidden': pageLoading}" class="chat-container w-12/12 md:w-10/12 lg:w-8/12 overflow-y-auto overflow-x-hidden relative rounded-xl shadow-xl mx-auto bg-gray-700">
+      <div class="overflow-y-auto p-4 messages_list" ref="messageList">
+        <div v-if="pageLoading" class="z-50 h-full relative flex flex-col items-center">
+          <h1 class="text-center text-gray-300 mt-4"><i class="fa fa-spinner"></i></h1>
+          <h1 class="text-center text-gray-300">Decrypting your messages...</h1>
         </div>
         <div v-for="(el, index) in messages" :key="index" class="flex flex-row">
-          <div :class="{'message p-3 rounded shadow-sm text-sm m-2 max-w-sm lg:max-w-lg': true, 'ml-auto mr-0': el.author == user.username, 'ml-0 mr-auto': el.author == receiverSelected.username}" v-if="(el.copy === true && el.author === user.username) || (el.copy === false && el.author === receiverSelected.username)">
+          <div :class="{'message p-3 rounded shadow-sm text-sm m-2 max-w-xs lg:max-w-lg': true, 'ml-auto mr-0': el.author == user.username, 'ml-0 mr-auto': el.author == receiverSelected.username}" v-if="(el.copy === true && el.author === user.username) || (el.copy === false && el.author === receiverSelected.username)">
             <span v-html="el.text" class="block"></span>
             <span v-html="new Date(el.created_at).toLocaleTimeString()" class="text-gray-500"></span>
           </div>
         </div>
       </div>
-      <div class="input container absolute bottom-0 right-0 left-0 bg-gray-100 p-3 flex flex-row justify-center align-middle items-center" style="max-width:unset!important">
-        <p :class="{'text-sm mr-2 text-gray-600':true, 'text-red-500':messageToSend.length > maxMessageLength}" v-html="messageToSend.length+'/'+maxMessageLength"></p>
-        <input type="text" max="190" class="bg-white shadow-lg rounded p-3 inline-block w-10/12 focus:outline-none" v-model="messageToSend" @keyup.enter="sendMessage()">
-        <i class="fas fa-paper-plane text-gray-300 hover:text-gray-400 text-2xl cursor-pointer ml-3" @click="sendMessage()"></i>
+      <div class="input container absolute bottom-0 right-0 left-0 bg-gray-800 p-3 flex flex-row justify-center align-middle items-center" style="max-width:unset!important">
+        <p :class="{'text-sm mr-2 text-gray-400':true, 'text-red-400':messageToSend.length > maxMessageLength}" v-html="messageToSend.length+'/'+maxMessageLength"></p>
+        <input type="text" max="190" class="shadow-lg rounded bg-gray-600 text-gray-200 p-3 inline-block w-11/12 focus:outline-none" v-model="messageToSend" @keyup.enter="sendMessage()">
+        <i class="fas fa-paper-plane text-gray-500 hover:text-gray-600 text-2xl cursor-pointer ml-3" @click="sendMessage()"></i>
       </div>
     </div> 
   </div>
 </template>
 <style lang="css">
-  body {background: rgb(238, 238, 238);}
-  .chat-container {height: 600px; max-width: unset!important;}
+  .chat-container {height: calc(100vh - 118px); max-width: unset!important; overflow-y:auto;}
+  .messages_list {height: calc(100vh - 180px);}
   .message {background: rgb(188, 255, 222); word-break: break-word;}
-  .loading-overlay::before {content: ''; position: absolute; top: 0; bottom: 0;left: 0;right: 0; background: rgba(255,255,255,.78); z-index: 1;}
+  .loading-overlay::after {content: ''; position: absolute; top: 0; bottom: 0;left: 0;right: 0; background: rgba(0,0,0,.75); z-index: 1;}
 </style>
 <script>
 import { mapGetters } from 'vuex'
@@ -72,6 +72,7 @@ export default {
           mex.text = app.messageToSend
           app.messages.push(mex)
           app.messageToSend = ''
+          app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight
         }
         else {
           console.log("Errore in sendMessage")
@@ -122,6 +123,7 @@ export default {
           const dcrptdTxt = await crypto.subtle.decrypt({name: 'RSA-OAEP'}, app.privateKeyFormatted, Buffer.from(el.text, 'base64'));
           el.text = Buffer.from(dcrptdTxt).toString()
         })
+        app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight
       });
     },
     importPersonalPublicKey(pem) {
@@ -215,6 +217,7 @@ export default {
         }
         //Import private key
         setTimeout(() => {
+          app.user.private_key = localStorage.getItem('private_key')
           app.importPrivateKey(app.user.private_key)
           app.importPersonalPublicKey(app.user.public_key)
           app.pageLoading = false

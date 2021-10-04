@@ -1,10 +1,10 @@
 <template>
-  <div class="login my-12">
-    <h1 class="text-2xl my-5 text-center">Login</h1>
-    <div @keyup.enter="login" class="flex flex-col w-11/12 md:w-5/12 lg:w-3/12 bg-white rounded-lg shadow-lg p-8 m-auto">
-      <input type="text" v-model="username" class="bg-gray-100 shadow p-3 m-1 focus:outline-none" placeholder="Username" autofocus>
-      <input type="password" v-model="password" class="bg-gray-100 shadow p-3 m-1 focus:outline-none" placeholder="Password" >
-      <button @click="login" class="p-3 bg-green-300 block rounded my-3">Login</button>
+  <div class="login py-12 h-screen bg-gray-900">
+    <h1 class="text-2xl py-5 text-center text-gray-300">Login</h1>
+    <div @keyup.enter="login" class="flex flex-col w-11/12 md:w-5/12 lg:w-3/12 bg-gray-700 rounded-lg shadow-lg p-8 m-auto">
+      <input type="text" v-model="username" class="bg-gray-600 rounded text-gray-200 shadow p-3 m-1 focus:outline-none" placeholder="Username" autofocus>
+      <input type="password" v-model="password" class="bg-gray-600 rounded text-gray-200 shadow p-3 m-1 focus:outline-none" placeholder="Password" >
+      <button @click="login" class="p-3 bg-green-400 block rounded my-3">Login</button>
       <p class="text-red-500" v-html="loginError"></p>
     </div>
   </div>
@@ -40,23 +40,44 @@ export default {
   },
   methods: {
     login() {
-      this.axios.post('/auth/login', {
-        username: this.username,
-        password: this.password
+      const app = this
+      app.axios.post('/auth/login', {
+        username: app.username,
+        password: app.password
       }).then(res => {
         if(res.data.error == undefined && res.data.error != true) {
           localStorage.setItem('access_token', res.data.access_token)
-          this.axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access_token}`;
-          this.axios.get('/profile').then(res => {
-            localStorage.setItem('user', res.data)
-            this.user = res.data
-            this.$router.push({name:'Friends'})
+          app.axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access_token}`;
+          app.axios.get('/profile').then(res => {
+            localStorage.setItem('user', JSON.stringify(res.data))
+            app.user = res.data
+            //Encrypt private_key
+            crypto.subtle.importKey(
+              "raw",
+              Buffer.from(app.password+app.user.addToPass, 'utf8').buffer,
+              {
+                name: "AES-CTR",
+                counter: app.user.private_key.iv,
+                length: 64
+              },
+              true,
+              ["decrypt"]
+            ).then(res => {
+                let key = res
+                key.algorithm.counter = app.user.private_key.iv
+                crypto.subtle.decrypt({name: 'AES-CTR', counter: Buffer.from(app.user.private_key.iv, 'hex').buffer,
+                length: 64}, key, Buffer.from(app.user.private_key.content, 'hex').buffer).then(res => {
+                  app.user.private_key = Buffer.from(res).toString('utf8')
+                  localStorage.setItem('private_key', app.user.private_key)
+                  app.$router.push({name:'Friends'})
+                })
+              });
           })
         }
         else {
-          this.username = ''
-          this.password = ''
-          this.loginError = res.data.message
+          app.username = ''
+          app.password = ''
+          app.loginError = res.data.message
         }
       })
     }
