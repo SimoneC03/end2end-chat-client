@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :style="($route.name == 'Chat') ? 'height:100vh;overflow:hidden;' : ''">
   <!-- This example requires Tailwind CSS v2.0+ -->
   <nav class="bg-gray-800" @mouseleave="dropdown = false">
     <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
@@ -37,6 +37,7 @@
               
               <button v-if="Object.keys(user).length > 0" type="button" @mouseover="dropdown = true" class="bg-gray-800 flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                 <span class="sr-only">Open user menu</span>
+                <router-link :to="{name: 'Account'}" v-html="user.username" class="text-gray-200 text-base my-auto mx-2 align-middle"></router-link>
                 <img class="h-8 w-8 rounded-full" :src="'https://avatars.dicebear.com/api/gridy/'+user.username+'.svg'" alt="">
               </button>
 
@@ -103,15 +104,22 @@ export default {
   mounted() {
     //Login check
     let access_token = localStorage.getItem('access_token')
-    if(access_token != undefined || access_token !== 'null') {
-      this.axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      this.axios.get('/profile').then(res => {
-        localStorage.setItem('user', JSON.stringify(res.data))
-        this.user = res.data
-      }).catch(() => {
-        this.logout()
-      })
-    }
+    setTimeout(() => {
+      if(access_token != undefined || access_token !== 'null') {
+        this.axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        this.axios.get('/profile').then(res => {
+          localStorage.setItem('user', JSON.stringify(res.data))
+          this.user = res.data
+        }).catch(() => {
+          if(localStorage.access_token == null && localStorage.private_key == null && localStorage.user == null) {
+            console.log(".")
+          }
+          else {
+            this.logout()
+          }
+        })
+      }
+    },100)
   }
 }
 </script>

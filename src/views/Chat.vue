@@ -1,6 +1,5 @@
 <template>
-  <div class="chat bg-gray-900 h-screen">
-    <h1 class="text-lg py-3 text-center text-gray-300">Chat</h1>
+  <div class="chat bg-gray-900 h-screen pt-6">
     <div :class="{'loading-overlay relative overflow-y-hidden': pageLoading}" class="chat-container w-12/12 md:w-10/12 lg:w-8/12 overflow-y-auto overflow-x-hidden relative rounded-xl shadow-xl mx-auto bg-gray-700">
       <div class="overflow-y-auto p-4 messages_list" ref="messageList">
         <div v-if="pageLoading" class="z-50 h-full relative flex flex-col items-center">
@@ -30,11 +29,11 @@
 </style>
 <script>
 import { mapGetters } from 'vuex'
+import { io } from "socket.io-client";
 export default {
   name: 'Chat',
   data() {
     return {
-      user: {},
       messages: [],
       maxMessageLength: 190,
       privateKeyFormatted: {},
@@ -42,14 +41,24 @@ export default {
       receiverPublicKeyFormatted: {},
       receiverSelected: {},
       messageToSend: '',
-      pageLoading: true
+      pageLoading: true,
+      socket: io(process.env.VUE_APP_SOCKETIO_URL)
     }
   },
   props: ['username'],
   computed: {
-    ...mapGetters(['axios'])
+    ...mapGetters(['axios', 'user'])
   },
   methods: {
+    socketEvents() {
+      const app = this
+      app.socket.on('private message', msg => {
+        crypto.subtle.decrypt({name: 'RSA-OAEP'}, app.privateKeyFormatted, Buffer.from(msg.text, 'base64')).then(res => {
+          msg.text = Buffer.from(res).toString()
+          app.messages.push(msg)
+        });
+      })
+    },
     async getMessages() {
       const res = await this.axios.get('/messages/'+this.receiverSelected.username)
       this.messages = res.data
@@ -67,12 +76,15 @@ export default {
         })
 
         if(res.data.error == undefined && res.data.error != true) {
+          //To receiver through Socket.io
+          app.socket.emit('private message', res.data.mex)
+
           //IN LCOAL ONLY!!
           let mex = res.data.copy
           mex.text = app.messageToSend
           app.messages.push(mex)
           app.messageToSend = ''
-          app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight
+          setTimeout(() =>app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight+99999,50)
         }
         else {
           console.log("Errore in sendMessage")
@@ -123,7 +135,7 @@ export default {
           const dcrptdTxt = await crypto.subtle.decrypt({name: 'RSA-OAEP'}, app.privateKeyFormatted, Buffer.from(el.text, 'base64'));
           el.text = Buffer.from(dcrptdTxt).toString()
         })
-        app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight
+        setTimeout(() => app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight+99999, 50)
       });
     },
     importPersonalPublicKey(pem) {
@@ -198,35 +210,30 @@ export default {
       
     }
   },
-  mounted() {
+  beforeMount() {
     const app = this
     setTimeout(() => {
-      app.axios('/profile').then(async res => {
-        app.user = res.data
-        localStorage.setItem('user', JSON.stringify(res.data))
+      //Check if username prop exists
+      if(app.username != undefined) {
+        app.receiverSelected = app.user.friends.find(el => el.username == app.username)
+        app.importReceiverPublicKey(app.receiverSelected.public_key)
+        app.getMessages()
+      }
+      else {
+        //TO REMOVE
+        app.$router.push({name: 'PageNotFound'})
+      }
+      //Import private key
+      setTimeout(() => {
+        app.user.private_key = localStorage.getItem('private_key')
+        app.importPrivateKey(app.user.private_key)
+        app.importPersonalPublicKey(app.user.public_key)
+        app.socketEvents()
+        app.socket.emit('User connected', app.user.username)
+        app.pageLoading = false
+      }, 1000)
+    }, 1000)
 
-        //Check if username prop exists
-        if(app.username != undefined) {
-          app.receiverSelected = app.user.friends.find(el => el.username == app.username)
-          app.importReceiverPublicKey(app.receiverSelected.public_key)
-          app.getMessages()
-        }
-        else {
-          //TO REMOVE
-          app.$router.push({name: 'PageNotFound'})
-        }
-        //Import private key
-        setTimeout(() => {
-          app.user.private_key = localStorage.getItem('private_key')
-          app.importPrivateKey(app.user.private_key)
-          app.importPersonalPublicKey(app.user.public_key)
-          app.pageLoading = false
-        }, 1000)
-
-      }).catch(() => {
-        app.$router.push({name: 'Login'})
-      })
-    }, 100)
 
   }
 }
