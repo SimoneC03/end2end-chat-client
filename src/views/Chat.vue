@@ -6,6 +6,10 @@
           <h1 class="text-center text-gray-300 mt-4"><i class="fa fa-spinner"></i></h1>
           <h1 class="text-center text-gray-300">Decrypting your messages...</h1>
         </div>
+        <div class="absolute top-0 left-0 right-0 z-1 text-center bg-gray-800">
+          <h1 class="text-xl mt-2 h-6 text-gray-200" v-html="receiverSelected.username"></h1>
+          <span class="text-gray-400 text-sm h-6 items-center flex align-middle justify-center"><span v-if="typingStatus">Sta scrivendo...</span></span>
+        </div>
         <div v-for="(el, index) in messages" :key="index" class="flex flex-row">
           <div :class="{'message p-3 rounded shadow-sm text-sm m-2 max-w-xs lg:max-w-lg': true, 'ml-auto mr-0': el.author == user.username, 'ml-0 mr-auto': el.author == receiverSelected.username}" v-if="(el.copy === true && el.author === user.username) || (el.copy === false && el.author === receiverSelected.username)">
             <span v-html="el.text" class="block"></span>
@@ -15,7 +19,7 @@
       </div>
       <div class="input container absolute bottom-0 right-0 left-0 bg-gray-800 p-3 flex flex-row justify-center align-middle items-center" style="max-width:unset!important">
         <p :class="{'text-sm mr-2 text-gray-400':true, 'text-red-400':messageToSend.length > maxMessageLength}" v-html="messageToSend.length+'/'+maxMessageLength"></p>
-        <input type="text" max="190" class="shadow-lg rounded bg-gray-600 text-gray-200 p-3 inline-block w-11/12 focus:outline-none" v-model="messageToSend" @keyup.enter="sendMessage()">
+        <input type="text" max="190" class="shadow-lg rounded bg-gray-600 text-gray-200 p-3 inline-block w-11/12 focus:outline-none" v-model="messageToSend" @keyup.enter="sendMessage()" @keydown="typing()">
         <i class="fas fa-paper-plane text-gray-500 hover:text-gray-600 text-2xl cursor-pointer ml-3" @click="sendMessage()"></i>
       </div>
     </div> 
@@ -42,7 +46,9 @@ export default {
       receiverSelected: {},
       messageToSend: '',
       pageLoading: true,
-      socket: io(process.env.VUE_APP_SOCKETIO_URL)
+      socket: io(process.env.VUE_APP_SOCKETIO_URL),
+      typingStatus: false,
+      tout: {}
     }
   },
   props: ['username'],
@@ -50,13 +56,26 @@ export default {
     ...mapGetters(['axios', 'user'])
   },
   methods: {
+    typing() {
+      this.socket.emit('private typing', this.receiverSelected.username)
+    },
     socketEvents() {
       const app = this
+      //Receive private message
       app.socket.on('private message', msg => {
         crypto.subtle.decrypt({name: 'RSA-OAEP'}, app.privateKeyFormatted, Buffer.from(msg.text, 'base64')).then(res => {
           msg.text = Buffer.from(res).toString()
           app.messages.push(msg)
         });
+      })
+
+      //Typing
+      app.socket.on('private typing', () => {
+        app.typingStatus = true;
+        clearTimeout(app.tout);
+        app.tout = setTimeout(() => {
+            app.typingStatus = false;
+        }, 2300); 
       })
     },
     async getMessages() {
