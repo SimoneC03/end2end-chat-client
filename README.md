@@ -1,4 +1,5 @@
 # end2endchat-vue-client
+Vue client for <a href="https://github.com/SimoneC03/end2end-chat-api">NestJs api</a>
 
 ## Project setup
 ```
