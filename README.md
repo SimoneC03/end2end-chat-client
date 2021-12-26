@@ -21,5 +21,9 @@ npm run build
 npm run lint
 ```
 
+Notice: window.crypto is not injected in a socket without ssl cert.
+
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+
