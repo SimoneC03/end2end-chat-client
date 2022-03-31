@@ -27,7 +27,7 @@
 </template>
 <style lang="css">
   .chat-container {height: calc(100vh - 118px); max-width: unset!important; overflow-y:auto;}
-  .messages_list {height: calc(100vh - 180px);}
+  .messages_list {height: calc(100vh - 180px); padding-top: 60px;}
   .message {background: rgb(188, 255, 222); word-break: break-word;}
   .loading-overlay::after {content: ''; position: absolute; top: 0; bottom: 0;left: 0;right: 0; background: rgba(0,0,0,.75); z-index: 1;}
 </style>
@@ -96,9 +96,11 @@ export default {
 
         if(res.data.error == undefined && res.data.error != true) {
           //To receiver through Socket.io
+          console.log(res.data.mex)
           app.socket.emit('private message', res.data.mex)
+          console.log(res.data.mex)
 
-          //IN LCOAL ONLY!!
+          //IN LOCAL ONLY!!
           let mex = res.data.copy
           mex.text = app.messageToSend
           app.messages.push(mex)
@@ -120,7 +122,7 @@ export default {
       }
       return buf;
     },
-    importPrivateKey(pem) {
+    async importPrivateKey(pem) {
       /*
       Import a PEM encoded RSA private key, to use for RSA-PSS signing.
       Takes a string containing the PEM encoded key, and returns a Promise
@@ -136,17 +138,18 @@ export default {
       const binaryDerString = window.atob(pemContents.substr(0,pemlength-1));
       // convert from a binary string to an ArrayBuffer
       const binaryDer = app.str2ab(binaryDerString);
-
-      window.crypto.subtle.importKey(
-        "pkcs8",
-        binaryDer,
-        {
-          name: "RSA-OAEP",
-          hash: "SHA-256",
-        },
-        true,
-        ["decrypt"]
-      ).then(res => {
+      try {
+        const res = await window.crypto.subtle.importKey(
+          "pkcs8",
+          binaryDer,
+          {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+          },
+          true,
+          ["decrypt"]
+        )
+        
         //Saving formatted imported private key
         app.privateKeyFormatted = res
 
@@ -155,9 +158,12 @@ export default {
           el.text = Buffer.from(dcrptdTxt).toString()
         })
         setTimeout(() => app.$refs.messageList.scrollTop = app.$refs.messageList.clientHeight+99999, 50)
-      });
+      }
+      catch(e) {
+        alert(JSON.stringify(e))
+      }
     },
-    importPersonalPublicKey(pem) {
+    async importPersonalPublicKey(pem) {
       /*
       Import a PEM encoded RSA private key, to use for RSA-PSS signing.
       Takes a string containing the PEM encoded key, and returns a Promise
@@ -176,22 +182,26 @@ export default {
       // const binaryDer = app.str2ab(binaryDerString);
       // console.log(binaryDer)
       // console.log(Buffer.from(pemContents, 'base64').buffer)
-
-      window.crypto.subtle.importKey(
-        "spki",
-        Buffer.from(pemContents, 'base64').buffer,
-        {
-          name: "RSA-OAEP",
-          hash: "SHA-256",
-        },
-        true,
-        ["encrypt"]
-      ).then(res => {
+      try {
+        const res = await window.crypto.subtle.importKey(
+          "spki",
+          Buffer.from(pemContents, 'base64').buffer,
+          {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+          },
+          true,
+          ["encrypt"]
+        )
+        
         //Saving formatted imported personal public key
         app.publicKeyFormatted = res
-      });
+      }
+      catch(e) {
+        alert(JSON.stringify(e))
+      }
     },
-    importReceiverPublicKey(pem) {
+    async importReceiverPublicKey(pem) {
       /*
       Import a PEM encoded RSA private key, to use for RSA-PSS signing.
       Takes a string containing the PEM encoded key, and returns a Promise
@@ -210,47 +220,49 @@ export default {
       // const binaryDer = app.str2ab(binaryDerString);
       // console.log(binaryDer)
       // console.log(Buffer.from(pemContents, 'base64').buffer)
-
-      window.crypto.subtle.importKey(
-        "spki",
-        Buffer.from(pemContents, 'base64').buffer,
-        {
-          name: "RSA-OAEP",
-          hash: "SHA-256",
-        },
-        true,
-        ["encrypt"]
-      ).then(res => {
+      try {
+        const res = await window.crypto.subtle.importKey(
+          "spki",
+          Buffer.from(pemContents, 'base64').buffer,
+          {
+            name: "RSA-OAEP",
+            hash: "SHA-256",
+          },
+          true,
+          ["encrypt"]
+        )
+        
         //Saving formatted imported receiver public key
         app.receiverPublicKeyFormatted = res
-      });
+      }
+      catch(e) {
+        alert(JSON.stringify(e))
+      }
     },
     changeReceiver() {
       
     }
   },
-  beforeMount() {
+  async beforeMount() {
     const app = this
-    setTimeout(() => {
+    setTimeout(async () => {
       //Check if username prop exists
       if(app.username != undefined) {
         app.receiverSelected = app.user.friends.find(el => el.username == app.username)
-        app.importReceiverPublicKey(app.receiverSelected.public_key)
-        app.getMessages()
+        await app.importReceiverPublicKey(app.receiverSelected.public_key)
+        await app.getMessages()
       }
       else {
         //TO REMOVE
         app.$router.push({name: 'PageNotFound'})
       }
       //Import private key
-      setTimeout(() => {
-        app.user.private_key = localStorage.getItem('private_key')
-        app.importPrivateKey(app.user.private_key)
-        app.importPersonalPublicKey(app.user.public_key)
-        app.socketEvents()
-        app.socket.emit('User connected', app.user.username)
-        app.pageLoading = false
-      }, 1000)
+      app.user.private_key = localStorage.getItem('private_key')
+      await app.importPrivateKey(app.user.private_key)
+      await app.importPersonalPublicKey(app.user.public_key)
+      app.socketEvents()
+      app.socket.emit('User connected', {username: app.user.username, id: app.user._id})
+      app.pageLoading = false
     }, 1000)
 
 

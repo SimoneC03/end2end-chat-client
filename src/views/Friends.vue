@@ -1,5 +1,5 @@
 <template>
-  <div class="friends h-screen bg-gray-900">
+  <div class="friends h-screen bg-gray-900" v-if="user.friends != undefined">
     <h1 class="text-lg text-center text-gray-300 py-3">Your friends</h1>
     <div :class="{'friends_list w-11/12 md:w-5/12 lg:w-3/12 mx-auto':true, 'lg:flex lg:flex-row lg:w-screen justify-center':user.friends.filter(item => item.confirmed==true).length>1}" v-if="user.friends.filter(item => item.confirmed==true).length>0">
       <div v-for="(el, index) in user.friends.filter(item => item.confirmed==true)" :key="index" :class="{'lg:w-12/12':true,'lg:w-3/12': user.friends.filter(item => item.confirmed==true).length>1}">
